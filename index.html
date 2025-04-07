@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Contagem de Inventário - QR Code</title>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    #reader { width: 300px; margin-bottom: 20px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    input[type=number] { width: 80px; }
+    button { padding: 8px 12px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h2>Contagem de Inventário via QR Code</h2>
+  <div id="reader"></div>
+
+  <div id="resultado">
+    <p><strong>Item:</strong> <span id="material"></span></p>
+    <label for="quantidade">Quantidade:</label>
+    <input type="number" id="quantidade" min="0">
+    <button onclick="salvarItem()">Salvar</button>
+  </div>
+
+  <table id="tabela">
+    <thead>
+      <tr><th>Material</th><th>Quantidade</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <button onclick="exportarExcel()">Exportar para Excel</button>
+
+  <script>
+    const leitor = new Html5Qrcode("reader");
+    const config = { fps: 10, qrbox: 250 };
+    let ultimoMaterial = "";
+
+    function iniciarScanner() {
+      leitor.start({ facingMode: "environment" }, config,
+        qrCodeMessage => {
+          document.getElementById("material").textContent = qrCodeMessage;
+          ultimoMaterial = qrCodeMessage;
+        },
+        error => {}
+      );
+    }
+
+    function salvarItem() {
+      const material = ultimoMaterial;
+      const quantidade = document.getElementById("quantidade").value;
+      if (!material || !quantidade) {
+        alert("Escaneie um item e informe a quantidade.");
+        return;
+      }
+
+      const tabela = document.querySelector("#tabela tbody");
+      const linha = document.createElement("tr");
+      linha.innerHTML = `<td>${material}</td><td>${quantidade}</td>`;
+      tabela.appendChild(linha);
+
+      const dados = JSON.parse(localStorage.getItem("inventario") || "[]");
+      dados.push({ material, quantidade });
+      localStorage.setItem("inventario", JSON.stringify(dados));
+
+      document.getElementById("quantidade").value = "";
+      document.getElementById("material").textContent = "";
+    }
+
+    function exportarExcel() {
+      const dados = JSON.parse(localStorage.getItem("inventario") || "[]");
+      if (dados.length === 0) {
+        alert("Nenhum dado para exportar.");
+        return;
+      }
+
+      const planilha = XLSX.utils.json_to_sheet(dados);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, planilha, "Inventário");
+      XLSX.writeFile(workbook, "inventario.xlsx");
+    }
+
+    window.onload = () => {
+      iniciarScanner();
+    };
+  </script>
+</body>
+</html>
